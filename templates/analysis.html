@@ -1,0 +1,747 @@
+{% extends "base.html" %}
+{% block title %}豆瓣电影 - 数据大屏{% endblock %}
+{% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+    /* 打印报告模式样式 - 强制显示所有 Tab 并隐藏干扰项 */
+    body.report-mode {
+        background: white !important;
+        overflow: auto !important;
+    }
+
+    body.report-mode #accordionSidebar,
+    body.report-mode .topbar,
+    body.report-mode footer,
+    body.report-mode .nav-tabs,
+    body.report-mode #ai-assistant-container,
+    body.report-mode .btn,
+    body.report-mode .data-toolbox {
+        /* 隐藏按钮和工具箱 */
+        display: none !important;
+    }
+
+    body.report-mode #content-wrapper {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+    }
+
+    body.report-mode .container-fluid {
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+
+    body.report-mode .tab-content>.tab-pane {
+        display: block !important;
+        /* 强制显示所有 Tab */
+        opacity: 1 !important;
+        border: none !important;
+        margin-bottom: 50px;
+        page-break-inside: avoid;
+        /* 防止分页截断图表 */
+    }
+
+    body.report-mode .card {
+        box-shadow: none !important;
+        border: 1px solid #eee !important;
+    }
+
+    @media print {
+        @page {
+            size: A4;
+            margin: 10mm;
+        }
+
+        body {
+            -webkit-print-color-adjust: exact;
+        }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h3 class="h3 fw-bold text-gray-800">数据大屏</h3>
+        <p class="text-muted">全方位探索电影数据的分布、趋势与语义关联</p>
+    </div>
+    <button onclick="enterReportMode()" class="btn btn-sm btn-primary shadow-sm">
+        <i class="bi bi-file-earmark-pdf-fill me-1"></i> 生成分析报告
+    </button>
+</div>
+
+<!-- 导航标签页 -->
+<ul class="nav nav-tabs mb-4" id="analysisTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview"
+            type="button" role="tab" aria-controls="overview" aria-selected="true">
+            <i class="bi bi-grid-1x2-fill me-2"></i>多维分布
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="trends-tab" data-bs-toggle="tab" data-bs-target="#trends" type="button"
+            role="tab" aria-controls="trends" aria-selected="false">
+            <i class="bi bi-graph-up-arrow me-2"></i>评分趋势
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="ai-hub-tab" data-bs-toggle="tab" data-bs-target="#ai-hub" type="button"
+            role="tab" aria-controls="ai-hub" aria-selected="false">
+            <i class="bi bi-cpu-fill me-2"></i>AI 聚类
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="graph-tab" data-bs-toggle="tab" data-bs-target="#graph" type="button"
+            role="tab" aria-controls="graph" aria-selected="false">
+            <i class="bi bi-share-fill me-2"></i>影视关系
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="analysisTabsContent">
+    <!-- 标签页 1: 概览 (全球地图, 类型, 国家) -->
+    <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
+        <!-- 数据工具箱 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow border-0 rounded-3" style="position: relative; z-index: 1050;">
+                    <div class="card-body d-flex justify-content-between align-items-center bg-light rounded-3">
+                        <div>
+                            <h5 class="fw-bold text-dark mb-1"><i class="bi bi-tools me-2 text-primary"></i>数据工具箱</h5>
+                            <span class="text-muted small">您可以导出当前数据或生成可视化词云报告</span>
+                        </div>
+                        <div>
+                            <div class="btn-group">
+                                <a href="{{ url_for('movie.word') }}" class="btn btn-outline-primary">
+                                    <i class="bi bi-cloud me-1"></i> 词云概览
+                                </a>
+                                <button type="button" class="btn btn-success dropdown-toggle dropdown-toggle-split"
+                                    data-bs-toggle="dropdown" aria-expanded="false">
+                                    <span class="visually-hidden">Toggle Dropdown</span>
+                                    <i class="bi bi-download me-1"></i> 导出数据
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <h6 class="dropdown-header">基础数据</h6>
+                                    </li>
+                                    <li><a class="dropdown-item" href="{{ url_for('analysis.export_data') }}"><i
+                                                class="bi bi-table me-2"></i>电影明细列表 (Excel)</a></li>
+                                    <li>
+                                        <hr class="dropdown-divider">
+                                    </li>
+                                    <li>
+                                        <h6 class="dropdown-header">高级报表</h6>
+                                    </li>
+                                    <li><a class="dropdown-item" href="{{ url_for('analysis.export_stats') }}"><i
+                                                class="bi bi-bar-chart-steps me-2"></i>统计分析报表 (评分/地区/年份)</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('analysis.export_graph') }}"><i
+                                                class="bi bi-share me-2"></i>人物关系图谱 (Nodes/Edges)</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('analysis.export_keywords') }}"><i
+                                                class="bi bi-tags me-2"></i>词云关键词表 (TF-IDF)</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <!-- 全球分布地图 -->
+            <div class="col-12">
+                <div class="card shadow h-100 rounded-3 border-0">
+                    <div class="card-header bg-white py-3 border-bottom">
+                        <h6 class="m-0 fw-bold text-success">电影产地全球分布 (Global Distribution)</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="worldMap" style="height:500px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- 类型分布 -->
+            <div class="col-lg-6">
+                <div class="card shadow h-100 rounded-3 border-0">
+                    <div class="card-header bg-white py-3 border-bottom">
+                        <h6 class="m-0 fw-bold text-primary">电影类型分布 (Top Genres)</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="genreChart" style="height:400px;"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- 国家/地区分布 -->
+            <div class="col-lg-6">
+                <div class="card shadow h-100 rounded-3 border-0">
+                    <div class="card-header bg-white py-3 border-bottom">
+                        <h6 class="m-0 fw-bold text-info">制片国家/地区分布 (Top Regions)</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="countryChart" style="height:400px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 标签页 2: 趋势 (评分, 年份) -->
+    <div class="tab-pane fade" id="trends" role="tabpanel" aria-labelledby="trends-tab">
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card shadow h-100 rounded-3 border-0">
+                    <div class="card-header bg-white py-3 border-bottom">
+                        <h6 class="m-0 fw-bold text-primary">评分分布 (Score Distribution)</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="scoreChart" style="height:400px; width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card shadow h-100 rounded-3 border-0">
+                    <div class="card-header bg-white py-3 border-bottom">
+                        <h6 class="m-0 fw-bold text-success">上映年份趋势 (Release Year Trend)</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="yearChart" style="height:400px; width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 标签页 3: AI 聚类中心 -->
+    <div class="tab-pane fade" id="ai-hub" role="tabpanel" aria-labelledby="ai-hub-tab">
+        <div class="card shadow mb-4 border-0 rounded-3">
+            <div
+                class="card-header py-3 d-flex flex-row align-items-center justify-content-between bg-white border-bottom">
+                <h6 class="m-0 fw-bold text-info">电影语义空间分布图 (Semantic Space)</h6>
+                <div class="d-flex align-items-center">
+                    <label class="me-2 small text-muted">聚类数量:</label>
+                    <input type="number" id="clusterCount" class="form-control form-control-sm me-3" value="10" min="2"
+                        max="50" style="width: 80px;" title="请输入聚类簇数 (2-20)">
+                    <button class="btn btn-sm btn-info text-white" onclick="loadClusterChart()">
+                        <i class="bi bi-arrow-clockwise"></i> 重新计算
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="clusterChart" style="height: 600px; width: 100%;"></div>
+                <div class="mt-3 text-muted small text-center">
+                    * 坐标点越接近，说明两部电影的剧情关键词越相似。此图通过 TF-IDF 特征提取 + t-SNE 降维生成。
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 标签页 4: 影视关系图谱 -->
+    <div class="tab-pane fade" id="graph" role="tabpanel" aria-labelledby="graph-tab">
+        <div class="card shadow mb-4 border-0 rounded-3">
+            <div
+                class="card-header py-3 d-flex flex-row align-items-center justify-content-between bg-white border-bottom">
+                <h6 class="m-0 fw-bold text-indigo" style="color: #6610f2;">导演-演员合作关系图谱 (Relationship Graph)</h6>
+                <div class="d-flex align-items-center">
+                    <select id="graphLayout" class="form-select form-select-sm me-3" style="width: auto;">
+                        <option value="force" selected>力导向图 (Force)</option>
+                        <option value="circular">环形图 (Circular)</option>
+                    </select>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadGraphChart()">
+                        <i class="bi bi-arrow-clockwise"></i> 刷新
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <!-- 增加高度以获得沉浸感 -->
+                <div id="graphChart" style="height: 700px; width: 100%;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- 加载 ECharts 地图 JS -->
+<script src="https://fastly.jsdelivr.net/npm/echarts@4.9.0/map/js/world.js"></script>
+
+<!-- JSON 数据注入 (安全注入) -->
+<script type="application/json" id="data-genre">{{ genre_data|tojson }}</script>
+<script type="application/json" id="data-country-labels">{{ country_labels|tojson }}</script>
+<script type="application/json" id="data-country-counts">{{ country_counts|tojson }}</script>
+<script type="application/json" id="data-score-labels">{{ score_labels|tojson }}</script>
+<script type="application/json" id="data-score-counts">{{ score_counts|tojson }}</script>
+<script type="application/json" id="data-year-labels">{{ year_labels|tojson }}</script>
+<script type="application/json" id="data-year-counts">{{ year_counts|tojson }}</script>
+
+<script>
+    // ----------------- 通用初始化 -----------------
+    // 解析数据
+    const genreData = JSON.parse(document.getElementById('data-genre').textContent);
+    const countryLabels = JSON.parse(document.getElementById('data-country-labels').textContent);
+    const countryCounts = JSON.parse(document.getElementById('data-country-counts').textContent);
+    const scoreLabels = JSON.parse(document.getElementById('data-score-labels').textContent);
+    const scoreCounts = JSON.parse(document.getElementById('data-score-counts').textContent);
+    const yearLabels = JSON.parse(document.getElementById('data-year-labels').textContent);
+    const yearCounts = JSON.parse(document.getElementById('data-year-counts').textContent);
+
+    // 图表实例
+    let mapChart, genreChart, countryChart, scoreChart, yearChart, clusterChart, graphChart;
+
+    // ----------------- 标签页 1: 概览图表 -----------------
+    function initOverviewCharts() {
+        if (!genreChart) {
+            genreChart = echarts.init(document.getElementById('genreChart'));
+            genreChart.setOption({
+                tooltip: { trigger: 'item' },
+                legend: { type: 'scroll', top: '0%', left: 'center' },
+                series: [{
+                    name: '电影类型',
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
+                    label: { show: false, position: 'center' },
+                    emphasis: { label: { show: true, fontSize: '20', fontWeight: 'bold' } },
+                    data: genreData
+                }]
+            });
+        }
+
+        if (!countryChart) {
+            countryChart = echarts.init(document.getElementById('countryChart'));
+            countryChart.setOption({
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: { type: 'value', boundaryGap: [0, 0.01] },
+                yAxis: {
+                    type: 'category',
+                    data: countryLabels,
+                    inverse: true,
+                },
+                series: [{
+                    name: '数量',
+                    type: 'bar',
+                    data: countryCounts,
+                    itemStyle: { color: '#36b9cc', borderRadius: [0, 5, 5, 0] },
+                    label: { show: true, position: 'right' }
+                }]
+            });
+        }
+
+        if (!mapChart) {
+            // 处理地图数据
+            const countryMap = {
+                '美国': 'United States', '英国': 'United Kingdom', '日本': 'Japan', '中国大陆': 'China',
+                '中国香港': 'China', '中国台湾': 'China', '韩国': 'Korea', '法国': 'France',
+                '德国': 'Germany', '意大利': 'Italy', '印度': 'India', '加拿大': 'Canada',
+                '澳大利亚': 'Australia', '西班牙': 'Spain', '俄罗斯': 'Russia', '巴西': 'Brazil',
+                '丹麦': 'Denmark', '瑞典': 'Sweden', '荷兰': 'Netherlands', '爱尔兰': 'Ireland',
+                '伊朗': 'Iran', '泰国': 'Thailand'
+            };
+            const mapData = [];
+            countryLabels.forEach((label, index) => {
+                const engName = countryMap[label];
+                if (engName) {
+                    const existing = mapData.find(item => item.name === engName);
+                    if (existing) {
+                        existing.value += countryCounts[index];
+                    } else {
+                        mapData.push({ name: engName, value: countryCounts[index] });
+                    }
+                }
+            });
+
+            mapChart = echarts.init(document.getElementById('worldMap'));
+            mapChart.setOption({
+                tooltip: {
+                    trigger: 'item',
+                    formatter: function (params) {
+                        return params.name + ': ' + (params.value || 0) + ' 部';
+                    }
+                },
+                visualMap: {
+                    min: 0, max: 100, left: 'left', top: 'bottom', text: ['High', 'Low'], calculable: true,
+                    inRange: { color: ['#e0f3f8', '#ffffbf', '#fee090', '#fdae61', '#f46d43', '#d73027'] }
+                },
+                series: [{
+                    name: 'Movies', type: 'map', mapType: 'world', roam: true,
+                    itemStyle: { areaColor: '#f3f3f3', borderColor: '#999' },
+                    emphasis: { itemStyle: { areaColor: '#4e73df' } },
+                    data: mapData
+                }]
+            });
+        }
+    }
+
+    // ----------------- 标签页 2: 趋势图表 -----------------
+    function initTrendCharts() {
+        if (!scoreChart) {
+            scoreChart = echarts.init(document.getElementById('scoreChart'));
+            scoreChart.setOption({
+                tooltip: { trigger: 'axis' },
+                toolbox: { feature: { saveAsImage: {}, magicType: { type: ['line', 'bar'] }, restore: {} }, right: 20 },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: { type: 'category', data: scoreLabels, name: '评分' },
+                yAxis: { type: 'value', name: '数量' },
+                series: [{
+                    type: 'bar', data: scoreCounts,
+                    itemStyle: { color: '#4e73df', borderRadius: [5, 5, 0, 0] },
+                    barWidth: '60%'
+                }]
+            });
+        }
+
+        if (!yearChart) {
+            yearChart = echarts.init(document.getElementById('yearChart'));
+            yearChart.setOption({
+                tooltip: { trigger: 'axis' },
+                toolbox: { feature: { saveAsImage: {}, magicType: { type: ['line', 'bar'] }, restore: {} }, right: 20 },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: { type: 'category', data: yearLabels, name: '年份' },
+                yAxis: { type: 'value', name: '数量' },
+                series: [{
+                    type: 'line', data: yearCounts, smooth: true,
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{
+                            offset: 0, color: 'rgba(28, 200, 138, 0.5)'
+                        }, {
+                            offset: 1, color: 'rgba(28, 200, 138, 0.05)'
+                        }])
+                    },
+                    itemStyle: { color: '#1cc88a' }, lineStyle: { width: 3 }
+                }]
+            });
+        }
+    }
+
+    // ----------------- 标签页 3: AI 聚类 -----------------
+    function loadClusterChart() {
+        if (!clusterChart) {
+            clusterChart = echarts.init(document.getElementById('clusterChart'));
+        }
+
+        var k = document.getElementById('clusterCount').value;
+        clusterChart.showLoading();
+
+        clusterChart.showLoading();
+
+        // 获取聚类数据 (通过 url_for 生成 URL)
+        fetch(`{{ url_for("api.clustering_data") }}?k=${k}`)
+            .then(response => response.json())
+            .then(data => {
+                clusterChart.hideLoading();
+                if (data.error) {
+                    alert("聚类分析失败: " + data.error);
+                    return;
+                }
+
+                const option = {
+                    title: { text: '电影题材聚类', subtext: '基于剧情简介 (TF-IDF + K-Means)', left: 'center' },
+                    grid: { left: '3%', right: '7%', bottom: '3%', containLabel: true },
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: function (params) {
+                            return '<div style="font-weight:bold">' + params.value[2] + '</div>'
+                                + '坐标: (' + params.value[0].toFixed(2) + ', ' + params.value[1].toFixed(2) + ')';
+                        }
+                    },
+                    toolbox: {
+                        feature: {
+                            dataZoom: { title: { zoom: '区域缩放', back: '还原' } },
+                            restore: { title: '重置' },
+                            saveAsImage: { title: '保存图片' }
+                        },
+                        right: 20, top: 0
+                    },
+                    dataZoom: [
+                        { type: 'inside', xAxisIndex: 0, filterMode: 'empty' },
+                        { type: 'inside', yAxisIndex: 0, filterMode: 'empty' }
+                    ],
+                    legend: { data: data.map(c => c.name), left: 'center', bottom: 10 },
+                    xAxis: { type: 'value', scale: true, splitLine: { show: false } },
+                    yAxis: { type: 'value', scale: true, splitLine: { show: false } },
+                    series: data.map(c => ({
+                        name: c.name, type: 'scatter', symbolSize: 10,
+                        emphasis: { focus: 'series' },
+                        // 显示电影名
+                        label: {
+                            show: true,
+                            position: 'top',
+                            formatter: function (param) {
+                                return param.value[2];
+                            },
+                            minMargin: 5,
+                            fontSize: 8,
+                            color: '#333'
+                        },
+                        // ECharts 5 特性：自动隐藏重叠标签，防止密集恐惧症
+                        labelLayout: {
+                            hideOverlap: true
+                        },
+                        data: c.data
+                    }))
+                };
+                clusterChart.setOption(option, true);
+
+                clusterChart.setOption(option, true);
+
+                // 点击跳转到本地详情页 (而非直接去豆瓣)
+                clusterChart.off('click');
+                clusterChart.on('click', function (params) {
+                    // 数据格式: [x, y, title, link, id]
+                    if (params.value && params.value[4]) {
+                        // 跳转到本地详情页
+                        window.open('/movie/' + params.value[4], '_blank');
+                    } else if (params.value && params.value[3]) {
+                        // 兼容旧数据：直接去豆瓣
+                        window.open(params.value[3], '_blank');
+                    }
+                });
+            })
+            .catch(error => {
+                clusterChart.hideLoading();
+                console.error('Error:', error);
+            });
+    }
+
+
+    // ----------------- 标签页 4: 知识图谱 (新功能) -----------------
+    function loadGraphChart() {
+        if (!graphChart) {
+            graphChart = echarts.init(document.getElementById('graphChart'));
+        }
+
+        graphChart.showLoading();
+
+        fetch('/api/graph/data?limit=80')
+            .then(response => response.json())
+            .then(data => {
+                graphChart.hideLoading();
+
+                const layoutType = document.getElementById('graphLayout').value;
+
+                const option = {
+                    backgroundColor: '#ffffff',
+                    color: ['#764ba2', '#ff6b6b'],
+                    title: {
+                        text: 'Top 80 影人合作网络',
+                        subtext: '节点越大表示作品越多，连线越粗表示合作越密切',
+                        top: '20',
+                        left: 'center',
+                        textStyle: { fontWeight: 'bold', color: '#333' }
+                    },
+                    tooltip: {},
+                    toolbox: {
+                        feature: { saveAsImage: { pixelRatio: 2 }, restore: {} },
+                        right: 20
+                    },
+                    legend: [{
+                        data: data.categories.map(function (a) { return a.name; }),
+                        bottom: 20
+                    }],
+                    series: [
+                        {
+                            type: 'graph',
+                            layout: layoutType, // 动态读取布局
+                            data: data.nodes.map(n => ({
+                                ...n,
+                                itemStyle: { shadowBlur: 5, shadowColor: 'rgba(0,0,0,0.3)' }
+                            })),
+                            links: data.links,
+                            categories: data.categories,
+                            roam: true,
+                            label: {
+                                show: true,
+                                position: 'right',
+                                formatter: '{b}'
+                            },
+                            draggable: true,
+                            // 根据布局类型切换配置
+                            force: layoutType === 'force' ? {
+                                repulsion: 800,
+                                edgeLength: [80, 250],
+                                gravity: 0.05
+                            } : undefined,
+                            circular: layoutType === 'circular' ? {
+                                rotateLabel: true
+                            } : undefined,
+
+                            lineStyle: {
+                                color: 'source',
+                                curveness: 0.3, // 稍微加大曲率
+                                opacity: 0.6
+                            },
+                            emphasis: {
+                                focus: 'adjacency',
+                                lineStyle: { width: 8, opacity: 1 }
+                            }
+                        }
+                    ]
+                };
+
+                graphChart.setOption(option);
+            })
+            .catch(error => {
+                graphChart.hideLoading();
+                console.error('Error:', error);
+            });
+    }
+
+
+    // ----------------- 事件监听 -----------------
+
+
+    // ----------------- 事件监听 -----------------
+
+    // 窗口调整大小时重绘图表
+    window.addEventListener('resize', function () {
+        [mapChart, genreChart, countryChart, scoreChart, yearChart, clusterChart, graphChart].forEach(chart => {
+            if (chart) chart.resize();
+        });
+    });
+
+    // 处理标签页切换
+    const tabEls = document.querySelectorAll('button[data-bs-toggle="tab"]');
+    tabEls.forEach(tabEl => {
+        tabEl.addEventListener('shown.bs.tab', function (event) {
+            const targetId = event.target.getAttribute('data-bs-target');
+
+            // 核心修改：同步 URL Hash，这样刷新后还能停留在当前 Tab
+            history.replaceState(null, null, targetId);
+
+            // 因为之前隐藏了 tab，切换回来时需要重置图表尺寸
+            if (targetId === '#overview') {
+                initOverviewCharts(); // 确保已初始化
+                [mapChart, genreChart, countryChart].forEach(c => c && c.resize());
+            } else if (targetId === '#trends') {
+                initTrendCharts();
+                [scoreChart, yearChart].forEach(c => c && c.resize());
+            } else if (targetId === '#ai-hub') {
+                if (!clusterChart) {
+                    loadClusterChart(); // 首次查看时加载数据
+                } else {
+                    clusterChart.resize();
+                }
+            } else if (targetId === '#graph') {
+                if (!graphChart) {
+                    loadGraphChart();
+                } else {
+                    graphChart.resize();
+                }
+            }
+        });
+    });
+
+    // 处理 Hash 导航 (用于兼容旧的路由跳转)
+    // ----------------- 路由与导航逻辑 -----------------
+
+    // 处理 Hash 导航 (支持 Sidebar 跳转和 URL 直接访问)
+    function handleHashNavigation(event) { // Added event parameter
+        const hash = window.location.hash;
+
+        // 1. Hash -> Tab ID 映射
+        const hashToTab = {
+            '#world-map': '#overview',
+            '#genre': '#overview',
+            '#score': '#trends',
+            '#trends': '#trends',
+            '#ai-hub': '#ai-hub',
+            '#graph': '#graph',
+            '#relation': '#graph' // 兼容不同的 hash 命名
+        };
+
+        let tabActivated = false;
+
+        if (hash) {
+            // 查找归属的 Tab
+            let targetTabId = hashToTab[hash] || hash;
+
+            const triggerEl = document.querySelector(`button[data-bs-target="${targetTabId}"]`);
+            if (triggerEl) {
+                const triggerTab = new bootstrap.Tab(triggerEl);
+                triggerTab.show();
+                tabActivated = true;
+
+                // 强制初始化图表 (防止刷新页面时因 Tab 已激活而不触发 shown.bs.tab 事件导致图表空白)
+                if (targetTabId === '#overview') {
+                    initOverviewCharts();
+                    setTimeout(() => [mapChart, genreChart, countryChart].forEach(c => c && c.resize()), 100);
+                } else if (targetTabId === '#trends') {
+                    initTrendCharts();
+                    setTimeout(() => [scoreChart, yearChart].forEach(c => c && c.resize()), 100);
+                } else if (targetTabId === '#ai-hub') {
+                    loadClusterChart();
+                } else if (targetTabId === '#graph') {
+                    loadGraphChart();
+                }
+
+                // 查找具体的滚动目标
+                if (targetTabId !== hash) {
+                    const scrollMapping = {
+                        '#world-map': '#worldMap',
+                        '#genre': '#genreChart',
+                        '#score': '#scoreChart'
+                    };
+                    const selector = scrollMapping[hash] || hash;
+
+                    // 稍微延迟等待 Tab 切换渲染
+                    setTimeout(() => {
+                        const el = document.querySelector(selector);
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 150);
+                }
+            }
+        }
+
+        // 仅在首次加载且无 Hash 时初始化默认视图
+        if (!tabActivated && !hash && event.type === 'DOMContentLoaded') {
+            initOverviewCharts();
+        }
+    }
+
+    // 绑定事件：页面加载完成 + URL Hash 变化
+    document.addEventListener("DOMContentLoaded", handleHashNavigation);
+    window.addEventListener("hashchange", handleHashNavigation);
+
+    // ----------------- 报告生成逻辑 -----------------
+    window.enterReportMode = function () {
+        const body = document.body;
+
+        // 1. 进入报告模式
+        body.classList.add('report-mode');
+
+        // 2. 确保所有图表数据已加载 (如果还没点开过 Tab)
+        if (typeof initOverviewCharts === 'function') initOverviewCharts();
+        if (typeof initTrendCharts === 'function') initTrendCharts();
+        if (typeof loadClusterChart === 'function' && !clusterChart) loadClusterChart();
+        if (typeof loadGraphChart === 'function' && !graphChart) loadGraphChart();
+
+        // 3. 强制重绘所有图表以适应新布局 (展开所有 Tab 后尺寸会变)
+        // 增加等待时间，确保 AJAX 请求完成且图表渲染完毕
+        setTimeout(() => {
+            [mapChart, genreChart, countryChart, scoreChart, yearChart, clusterChart, graphChart].forEach(chart => {
+                if (chart) chart.resize();
+            });
+
+            // 4. 给浏览器充足时间渲染 (ECharts 动画通常需要 1-2秒)
+            setTimeout(() => {
+                window.print();
+
+                // 5. 打印完成后自动退出
+                if (confirm("打印完成？点击确定退出报告模式。")) {
+                    exitReportMode();
+                }
+            }, 2000);
+        }, 1500);
+    }
+
+    window.exitReportMode = function () {
+        document.body.classList.remove('report-mode');
+        // 重新触发 Resize 以恢复正常布局
+        window.dispatchEvent(new Event('resize'));
+    }
+
+</script>
+
+{% endblock %}

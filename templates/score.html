@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}豆瓣电影 - 评分/年份{% endblock %}
+{% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="mb-4">
+  <h3 class="h3 fw-bold text-gray-800">评分与年份趋势</h3>
+  <p class="text-muted">分析电影的评分分布及上映年份走势</p>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card shadow h-100 rounded-3 border-0">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="m-0 fw-bold text-primary">评分分布</h6>
+      </div>
+      <div class="card-body">
+        <div id="scoreChart" style="height:360px;"></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card shadow h-100 rounded-3 border-0">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="m-0 fw-bold text-success">年份分布</h6>
+      </div>
+      <div class="card-body">
+        <div id="yearChart" style="height:360px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  const scoreLabels = {{ score| tojson }};
+  const scoreCounts = {{ num| tojson }};
+  const yearLabels = {{ score2| tojson }};
+  const yearCounts = {{ num2| tojson }};
+
+  const scoreChart = echarts.init(document.getElementById('scoreChart'));
+  scoreChart.setOption({
+    tooltip: { trigger: 'axis' },
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+    xAxis: { type: 'category', data: scoreLabels, name: '评分' },
+    yAxis: { type: 'value', name: '数量' },
+    series: [{
+      type: 'bar',
+      data: scoreCounts,
+      itemStyle: { color: '#4e73df', borderRadius: [5, 5, 0, 0] },
+      barWidth: '60%'
+    }]
+  });
+
+  const yearChart = echarts.init(document.getElementById('yearChart'));
+  yearChart.setOption({
+    tooltip: { trigger: 'axis' },
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+    xAxis: { type: 'category', data: yearLabels, name: '年份' },
+    yAxis: { type: 'value', name: '数量' },
+    series: [{
+      type: 'line',
+      data: yearCounts,
+      smooth: true,
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{
+          offset: 0, color: 'rgba(28, 200, 138, 0.5)'
+        }, {
+          offset: 1, color: 'rgba(28, 200, 138, 0.05)'
+        }])
+      },
+      itemStyle: { color: '#1cc88a' },
+      lineStyle: { width: 3 }
+    }]
+  });
+
+  window.addEventListener('resize', function () {
+    scoreChart.resize();
+    yearChart.resize();
+  });
+</script>
+{% endblock %}

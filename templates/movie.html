@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}豆瓣电影 - 列表{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h3 class="h3 fw-bold text-gray-800 mb-0">电影列表</h3>
+  <span class="badge bg-primary rounded-pill">{{ movies|length }} 部 (本页)</span>
+</div>
+
+<div class="card shadow rounded-3 overflow-hidden">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 text-nowrap">
+        <thead class="bg-light text-dark">
+          <tr>
+            <th scope="col" class="ps-4">排名</th>
+            <th scope="col">电影信息</th>
+            <th scope="col">评分</th>
+            <th scope="col">相关人员</th>
+            <th scope="col">年份/地区</th>
+            <th scope="col">类别</th>
+          </tr>
+        </thead>
+        <tbody class="border-top-0">
+          {% for movie in movies %}
+          <tr>
+            <td class="ps-4 text-muted fw-bold">#{{ loop.index + (page - 1) * 50 }}</td>
+            <td>
+              <div class="d-flex align-items-center">
+                <!-- 豆瓣链接 -->
+                <!-- 本地详情页链接 -->
+                <a href="/movie/{{ movie[0] }}" class="text-dark fw-bold text-decoration-none text-truncate"
+                  style="max-width: 200px;" title="{{ movie[3] }}">
+                  {{ movie[3] }}
+                </a>
+              </div>
+              <small class="text-muted d-block text-truncate" style="max-width: 200px;">{{ movie[4] }} / {{ movie[5]
+                }}人评价</small>
+            </td>
+            <td>
+              <span class="badge bg-warning text-dark">{{ movie[4] }}</span>
+            </td>
+            <td>
+              <small class="d-block text-truncate" style="max-width: 150px;" title="导演: {{ movie[10] }}">🎥 {{ movie[10]
+                }}</small>
+              <small class="d-block text-truncate text-muted" style="max-width: 150px;" title="主演: {{ movie[11] }}">👤
+                {{ movie[11] }}</small>
+            </td>
+            <td>
+              <div class="small">{{ movie[7] }}</div>
+              <div class="small text-muted">{{ movie[8] }}</div>
+            </td>
+            <td>
+              <span class="badge bg-light text-secondary border">{{ movie[9] }}</span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 分页导航 -->
+{% if total_pages > 1 %}
+<nav aria-label="Page navigation" class="mt-4">
+  <ul class="pagination justify-content-center">
+    <!-- 上一页 -->
+    <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('movie.movie_list', page=page-1) }}" aria-label="Previous">
+        <span aria-hidden="true">&laquo;</span>
+      </a>
+    </li>
+
+    <!-- 页码 -->
+    {% for p in range(1, total_pages + 1) %}
+    <li class="page-item {% if p == page %}active{% endif %}">
+      <a class="page-link" href="{{ url_for('movie.movie_list', page=p) }}">{{ p }}</a>
+    </li>
+    {% endfor %}
+
+    <!-- 下一页 -->
+    <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('movie.movie_list', page=page+1) }}" aria-label="Next">
+        <span aria-hidden="true">&raquo;</span>
+      </a>
+    </li>
+  </ul>
+</nav>
+{% endif %}
+
+{% endblock %}

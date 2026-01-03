@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}豆瓣电影 - 帮助中心{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4"><i class="bi bi-question-circle-fill text-primary"></i> 帮助中心</h2>
+
+    <div class="accordion" id="helpAccordion">
+        <!-- Item 1: 常见问题 -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingOne">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne"
+                    aria-expanded="true" aria-controls="collapseOne">
+                    <strong>1. 常见问题排查 (Troubleshooting)</strong>
+                </button>
+            </h2>
+            <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne"
+                data-bs-parent="#helpAccordion">
+                <div class="accordion-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">
+                            ❌ <strong>ModuleNotFoundError: No module named 'openpyxl'</strong><br>
+                            👉 解决方案：在终端运行 <code>pip install -r requirements.txt</code> 安装依赖。
+                        </li>
+                        <li class="list-group-item">
+                            ❌ <strong>HTTP 403 Forbidden</strong><br>
+                            👉 原因：豆瓣反爬虫机制拦截。<br>
+                            👉 解决方案：程序已内置 User-Agent 和 Cookie 伪装。如仍报错，请尝试更换网络环境（如使用手机热点）或暂停一小时后再试。
+                        </li>
+                        <li class="list-group-item">
+                            ❌ <strong>图片无法显示</strong><br>
+                            👉 原因：豆瓣防盗链策略。<br>
+                            👉 解决方案：我们已添加 <code>&lt;meta name="referrer" content="no-referrer"&gt;</code> 标签，通常能解决此问题。
+                        </li>
+                        <li class="list-group-item">
+                            ❌ <strong>TimeoutError / 连接超时</strong><br>
+                            👉 原因：网络波动或豆瓣服务器响应慢。<br>
+                            👉 解决方案：增加 <code>--delay</code> 参数（如 2.0秒）降低请求频率。
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Item 2: 命令行操作 -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingTwo">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                    <strong>2. 命令行操作指南 (CLI Guide)</strong>
+                </button>
+            </h2>
+            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo"
+                data-bs-parent="#helpAccordion">
+                <div class="accordion-body">
+                    <div class="alert alert-secondary">
+                        <p class="mb-2">如果您是管理员，可以通过以下命令手动更新数据：</p>
+                        <pre><code># 1. 抓取 Top 250 (默认)
+python main.py --pages 10
+
+# 2. 抓取特定类型 (如：喜剧)
+python main.py --tag 喜剧 --no-clear
+
+# 3. 抓取特定类型并增加延迟 (防封 IP)
+python main.py --tag 科幻 --delay 2.0</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Item 3: 功能说明 -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingThree">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                    <strong>3. 网站功能说明</strong>
+                </button>
+            </h2>
+            <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree"
+                data-bs-parent="#helpAccordion">
+                <div class="accordion-body">
+                    <ul>
+                        <li><strong>首页/仪表盘</strong>: 展示数据概览（总数、均分）。</li>
+                        <li><strong>电影列表</strong>: 分页浏览所有已抓取的电影。</li>
+                        <li><strong>评分统计</strong>: 柱状图展示评分分布。</li>
+                        <li><strong>多维分析</strong>:
+                            <ul>
+                                <li><strong>类型分布</strong>: 饼图展示电影题材。</li>
+                                <li><strong>地域分布</strong>: 地图/柱状图展示电影产地。</li>
+                                <li><strong>数据导出</strong>: 导出当前数据为 Excel。</li>
+                                <li><strong>动态词云</strong>: 实时生成简介与类别词云。</li>
+                            </ul>
+                        </li>
+                        <li><strong>管理后台</strong>: 网页版爬虫控制器 (需登录)。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <!-- 电影头部信息 -->
+    <div class="row">
+        <!-- 海报 -->
+        <div class="col-md-3">
+            <div class="card shadow-sm">
+                <img src="{{ movie[2] }}" class="card-img-top" alt="{{ movie[3] }}" referrerpolicy="no-referrer">
+            </div>
+        </div>
+
+        <!-- 文本信息 -->
+        <div class="col-md-9">
+            <h1 class="display-5 fw-bold mb-3">{{ movie[3] }} <span class="text-muted fs-4">({{ movie[7] }})</span></h1>
+
+            <div class="mb-4">
+                <span class="badge bg-success fs-6 me-2">评分 {{ movie[4] }}</span>
+                <span class="badge bg-secondary fs-6 me-2">{{ movie[5] }}</span>
+                {% for cate in movie[9].split() %}
+                <span class="badge bg-info text-dark me-1">{{ cate }}</span>
+                {% endfor %}
+            </div>
+
+            <table class="table table-borderless" style="max-width: 600px;">
+                <tbody>
+                    <tr>
+                        <td class="text-muted" width="100">导演</td>
+                        <td>{{ movie[10] }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">主演</td>
+                        <td>{{ movie[11] }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">制片国家</td>
+                        <td>{{ movie[8] }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="mt-4">
+                <a href="{{ movie[1] }}" target="_blank" class="btn btn-outline-success btn-lg">
+                    <i class="fa fa-external-link"></i> 前往豆瓣详情页
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 剧情简介 -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h4 class="card-title mb-3 border-bottom pb-2">剧情简介</h4>
+                    <p class="card-text fs-5 text-secondary" style="line-height: 1.8; text-indent: 2em;">
+                        {{ movie[6] }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 推荐 1: Embedding (语义理解) -->
+    <div class="row mt-5">
+        <h4 class="mb-4 border-bottom pb-2">
+            <i class="fas fa-brain" style="color: #6f42c1;"></i> 猜你喜欢 (基于语义 / Embedding)
+            <small class="text-muted fs-6 ms-2">更懂剧情内涵</small>
+        </h4>
+
+        {% if rec_embedding %}
+        {% for rec in rec_embedding %}
+        <div class="col-md-2 col-6 mb-4">
+            <div class="card h-100 shadow-sm movie-card-hover border-0">
+                <div class="position-relative">
+                    <img src="{{ rec.pic }}" class="card-img-top" alt="{{ rec.title }}"
+                        style="height: 200px; object-fit: cover; border-radius: 0.25rem 0.25rem 0 0;"
+                        referrerpolicy="no-referrer">
+                    <span class="position-absolute top-0 end-0 badge bg-warning text-dark m-1 shadow-sm">{{ rec.score
+                        }}</span>
+                </div>
+                <div class="card-body p-2 text-center">
+                    <h6 class="card-title text-truncate mb-1">
+                        <a href="/movie/{{ rec.id }}" class="text-decoration-none text-dark stretched-link">{{ rec.title
+                            }}</a>
+                    </h6>
+                    <small class="text-muted d-block">{{ rec.year or '' }}</small>
+                    <small class="text-secondary" style="font-size: 0.75rem;">相似度 {{ rec.similarity }}%</small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="col-12 text-center text-muted p-4">
+            <p>暂无语义推荐数据 (可能是索引正在构建中)</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 推荐 2: TF-IDF (关键词) -->
+    <div class="row mt-2 mb-5">
+        <h4 class="mb-4 border-bottom pb-2">
+            <i class="fas fa-tags text-primary"></i> 猜你喜欢 (基于关键词 / TF-IDF)
+            <small class="text-muted fs-6 ms-2">匹配导演、类型</small>
+        </h4>
+
+        {% if rec_tfidf %}
+        {% for rec in rec_tfidf %}
+        <div class="col-md-2 col-6 mb-4">
+            <div class="card h-100 shadow-sm movie-card-hover border-0">
+                <div class="position-relative">
+                    <img src="{{ rec.pic }}" class="card-img-top" alt="{{ rec.title }}"
+                        style="height: 200px; object-fit: cover; border-radius: 0.25rem 0.25rem 0 0;"
+                        referrerpolicy="no-referrer">
+                    <span class="position-absolute top-0 end-0 badge bg-warning text-dark m-1 shadow-sm">{{ rec.score
+                        }}</span>
+                </div>
+                <div class="card-body p-2 text-center">
+                    <h6 class="card-title text-truncate mb-1">
+                        <a href="/movie/{{ rec.id }}" class="text-decoration-none text-dark stretched-link">{{ rec.title
+                            }}</a>
+                    </h6>
+                    <small class="text-muted d-block">{{ rec.year }}</small>
+                    <small class="text-primary" style="font-size: 0.75rem;">相似度 {{ rec.similarity }}%</small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="col-12 text-center text-muted p-4">
+            <p>暂无关键词推荐</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .movie-card-hover {
+        transition: transform 0.2s;
+    }
+
+    .movie-card-hover:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15) !important;
+    }
+</style>
+{% endblock %}

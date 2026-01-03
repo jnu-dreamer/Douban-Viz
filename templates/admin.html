@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+{% block title %}豆瓣电影 - 后台管理{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+
+        <!-- 数据源切换器 -->
+        <div class="card shadow rounded-3 border-0 mb-4">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="m-0 fw-bold text-success"><i class="fas fa-database me-2"></i>数据源管理</h5>
+                <span class="badge bg-success">当前表: {{ current_table }}</span>
+            </div>
+            <div class="card-body p-4">
+                <!-- 1. 切换表单 -->
+                <!-- 1. 切换表单 -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-8">
+                        <label for="tableName" class="form-label fw-bold">1. 选择数据表 (切换)</label>
+                        <select class="form-select" id="tableName" name="table_name">
+                            {% for table in tables %}
+                            <option value="{{ table }}" {% if table==current_table %}selected{% endif %}>
+                                {{ table }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            当前生效: <span class="fw-bold text-success" id="currentTableLabel">{{ current_table }}</span>
+                            <span class="text-muted ms-2">(切换后自动重建 AI 索引)</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4 align-self-center">
+                        <div class="d-grid">
+                            <button type="button" id="btnSwitch" class="btn btn-primary" onclick="switchAndRebuild()">
+                                <i class="fas fa-sync-alt me-2"></i> 确认切换
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 状态显示 -->
+                    <div class="col-12" id="switchStatusArea" style="display: none;">
+                        <div class="alert alert-info d-flex align-items-center mb-0">
+                            <div class="spinner-border spinner-border-sm me-3" role="status"></div>
+                            <div id="switchStatusText">正在切换数据表并重建索引，请稍候...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="text-muted opacity-25 my-4">
+
+                <!-- 2. 重命名表单 -->
+                <form action="{{ url_for('admin.rename_table') }}" method="post" class="row g-3 align-items-center">
+                    <input type="hidden" name="old_name" value="{{ current_table }}">
+                    <div class="col-md-8">
+                        <label for="newName" class="form-label fw-bold">
+                            <i class="fas fa-edit me-1"></i> 2. 重命名当前表 ({{ current_table }})
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white">新名称</span>
+                            <input type="text" class="form-control" id="newName" name="new_name"
+                                placeholder="例如: movies_备份, movies_2024" required>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-outline-warning"
+                                onclick="return confirm('⚠️ 警告：\n确认重命名吗？\n\n重命名后，原表将移动到新名称。');">
+                                重命名
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow rounded-3 border-0 mb-4">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h5 class="m-0 fw-bold text-primary">爬虫控制台 (Crawler Console)</h5>
+            </div>
+            <div class="card-body p-4">
+
+                <div class="alert alert-light border shadow-sm mb-4">
+                    <h6 class="alert-heading fw-bold"><i class="fas fa-info-circle text-info"></i> 操作说明</h6>
+                    <ul class="mb-0 small text-muted ps-3">
+                        <li>爬取过程可能需要 30秒 - 3分钟，视页数而定。</li>
+                        <li>建议每次爬取间隔 1 分钟以上，防止 IP 被封禁。</li>
+                    </ul>
+                </div>
+
+                <form id="crawlForm">
+                    <!-- 1. 模式选择 -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">模式选择</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="crawl_type" id="type_top250" value="top250"
+                                checked>
+                            <label class="btn btn-outline-primary" for="type_top250">Top 250 榜单</label>
+
+                            <input type="radio" class="btn-check" name="crawl_type" id="type_tag" value="tag">
+                            <label class="btn btn-outline-primary" for="type_tag">按关键词搜索</label>
+                        </div>
+                    </div>
+
+                    <!-- 2. 关键词输入 (默认隐藏) -->
+                    <div id="tagInputGroup" class="mb-4 bg-light p-3 rounded" style="display: none;">
+                        <label for="tagname" class="form-label fw-bold">请输入搜索关键词</label>
+                        <input type="text" class="form-control" id="tagname" name="tag"
+                            placeholder="例如：喜剧, 科幻, 2023, 成龙...">
+                        <div class="form-text">支持输入任意关键词。</div>
+                    </div>
+
+                    <!-- 3. 排序方式 (默认隐藏) -->
+                    <div id="sortInputGroup" class="mb-4 bg-light p-3 rounded" style="display: none;">
+                        <label for="sort" class="form-label fw-bold">排序方式</label>
+                        <select class="form-select" id="sort" name="sort">
+                            <option value="recommend" selected>按热度推荐 (Recommend)</option>
+                            <option value="rank">按评价排序 (High Score)</option>
+                            <option value="time">按时间排序 (Release Date)</option>
+                            <option value="recent">近期热门 (Trending)</option>
+                        </select>
+                        <div class="form-text">"推荐"数量较少但经典，"评价"数量充足。</div>
+                    </div>
+
+                    <!-- 4. 选项配置 (第二行) -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <div id="pagesInputGroup">
+                                <label for="pages" class="form-label fw-bold">爬取页数 (Top 250)</label>
+                                <select class="form-select" id="pages" name="pages">
+                                    <option value="1">1 页 (约25部)</option>
+                                    <option value="3">3 页 (约75部)</option>
+                                    <option value="5">5 页 (约125部)</option>
+                                    <option value="10" selected>10 页 (完整榜单 / 约250部)</option>
+                                </select>
+                            </div>
+                            <div id="limitInputGroup" style="display: none;">
+                                <label for="limit" class="form-label fw-bold">爬取数量 (Tag 模式)</label>
+                                <input type="number" class="form-control" id="limit" name="limit" value="50" min="1"
+                                    max="500">
+                                <div class="form-text">一次性请求的数量 (建议 20-200)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="target_table" class="form-label fw-bold">目标数据表 (可选)</label>
+                            <input type="text" class="form-control" id="target_table" name="target_table"
+                                placeholder="默认为 movies">
+                            <div class="form-text">指定表名可将多批数据存入同一张表。</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">存储策略</label>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" id="no_clear" name="no_clear">
+                                <label class="form-check-label" for="no_clear">
+                                    追加模式 (Append)
+                                </label>
+                            </div>
+                            <div class="form-text small">勾选后将不清空旧数据，直接追加。</div>
+                        </div>
+                    </div>
+
+                    <!-- 4. 提交按钮 -->
+                    <div class="d-grid">
+                        <button type="submit" id="btnSubmit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-play me-2"></i> 开始爬取
+                        </button>
+                    </div>
+                </form>
+
+                <!-- 状态反馈区 -->
+                <div id="statusArea" class="mt-4" style="display: none;">
+                    <div class="alert alert-primary d-flex align-items-center border-0 shadow-sm" role="alert">
+                        <div class="spinner-border text-primary me-3" role="status" id="loadingSpinner">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-1" id="statusTitle">正在初始化...</h6>
+                            <p class="mb-0 small" id="statusText">请保持页面开启...</p>
+                        </div>
+                    </div>
+                    <!-- 进度条 (可接收动态更新) -->
+                    <div class="progress mt-2" style="height: 5px;">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated"
+                            role="progressbar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 3. 日志监控 (折叠版) -->
+        <button class="btn btn-outline-secondary w-100 mb-3 shadow-sm" type="button" data-bs-toggle="collapse"
+            data-bs-target="#logCollapse" aria-expanded="false" aria-controls="logCollapse">
+            <i class="fas fa-terminal me-2"></i> 显示 / 隐藏 系统日志监控
+        </button>
+        <div class="collapse" id="logCollapse">
+            <div class="card shadow rounded-3 border-0 mb-4">
+                <div class="card-header bg-dark text-white py-2">
+                    <small class="fw-bold">Console Output</small>
+                </div>
+                <div class="card-body bg-dark text-white font-monospace p-0">
+                    <div id="logViewer" class="p-3"
+                        style="height: 300px; overflow-y: auto; font-size: 0.85rem; line-height: 1.4;">
+                        <div class="text-white-50">正在加载日志...</div>
+                    </div>
+                    <div class="p-2 bg-secondary bg-opacity-25 text-end">
+                        <small class="text-white-50 me-3">每 2 秒自动刷新</small>
+                        <button class="btn btn-sm btn-outline-light" onclick="loadLogs()">立即刷新</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+<!-- Rename Modal -->
+
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // 标签输入框的 UI 切换
+    // 标签输入框的 UI 切换
+    document.querySelectorAll('input[name="crawl_type"]').forEach((elem) => {
+        elem.addEventListener("change", function (event) {
+            const tagGroup = document.getElementById('tagInputGroup');
+            const limitGroup = document.getElementById('limitInputGroup');
+            const pagesGroup = document.getElementById('pagesInputGroup');
+
+            if (event.target.value === "tag") {
+                tagGroup.style.display = "block";
+                limitGroup.style.display = "block";
+                document.getElementById('sortInputGroup').style.display = "block";
+                pagesGroup.style.display = "none";
+            } else {
+                tagGroup.style.display = "none";
+                limitGroup.style.display = "none";
+                document.getElementById('sortInputGroup').style.display = "none";
+                pagesGroup.style.display = "block";
+            }
+        });
+    });
+
+    // 轮询逻辑
+    let pollInterval;
+
+    function startPolling() {
+        pollInterval = setInterval(() => {
+            fetch('/api/progress')
+                .then(r => r.json())
+                .then(data => {
+                    const statusText = document.getElementById('statusText');
+                    const statusTitle = document.getElementById('statusTitle');
+                    const progressBar = document.getElementById('progressBar');
+
+                    statusText.innerText = data.message;
+
+                    if (data.total > 0) {
+                        const pct = Math.round((data.current / data.total) * 100);
+                        progressBar.style.width = pct + "%";
+                    }
+
+                    if (data.status === 'finished') {
+                        clearInterval(pollInterval);
+                        statusTitle.innerText = "完成！";
+                        statusTitle.className = "fw-bold mb-1 text-success";
+                        document.getElementById('loadingSpinner').style.display = "none";
+                        setTimeout(() => {
+                            alert("爬取成功！请在上方下拉菜单中切换到新数据表查看。");
+                            window.location.reload();
+                        }, 1000);
+                    } else if (data.status === 'error') {
+                        clearInterval(pollInterval);
+                        statusTitle.innerText = "出错";
+                        statusTitle.className = "fw-bold mb-1 text-danger";
+                        document.getElementById('loadingSpinner').style.display = "none";
+                        document.getElementById('btnSubmit').disabled = false;
+                    }
+                });
+        }, 1000);
+    }
+
+    // 表单提交
+    document.getElementById('crawlForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const data = {};
+        formData.forEach((value, key) => data[key] = value);
+        data['no_clear'] = document.getElementById('no_clear').checked;
+
+        if (data.crawl_type === 'tag' && !data.tag) {
+            alert("请输入类型名称！");
+            return;
+        }
+
+        // UI 重置
+        const btn = document.getElementById('btnSubmit');
+        const statusArea = document.getElementById('statusArea');
+
+        btn.disabled = true;
+        statusArea.style.display = 'block';
+        document.getElementById('progressBar').style.width = "0%";
+        document.getElementById('statusTitle').innerText = "正在启动...";
+        document.getElementById('statusTitle').className = "fw-bold mb-1 text-primary";
+        document.getElementById('loadingSpinner').style.display = "block";
+
+        fetch('/api/crawl', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+            .then(response => response.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    startPolling();
+                } else {
+                    alert("启动失败: " + res.message);
+                    btn.disabled = false;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert("请求失败");
+                btn.disabled = false;
+            });
+    });
+
+    // --- 新版 Log 监控逻辑 ---
+    function loadLogs() {
+        const viewer = document.getElementById('logViewer');
+        const statusArea = document.getElementById('switchStatusArea');
+
+        fetch('/api/logs')
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    viewer.innerHTML = `<div class="text-danger">日志获取失败: ${data.error}</div>`;
+                    return;
+                }
+                if (data.lines && data.lines.length > 0) {
+                    // 1. 渲染日志
+                    const html = data.lines.map(line => {
+                        let colorClass = "text-white";
+                        if (line.includes("[ERROR]")) colorClass = "text-danger fw-bold";
+                        else if (line.includes("[WARNING]")) colorClass = "text-warning";
+                        else if (line.includes("[INFO]")) colorClass = "text-info";
+                        else if (line.includes("[DEBUG]")) colorClass = "text-secondary";
+                        return `<div class="${colorClass}" style="white-space: pre-wrap;">${line}</div>`;
+                    }).join("");
+                    viewer.innerHTML = html;
+                    viewer.scrollTop = viewer.scrollHeight;
+
+                    // 2. 检测任务完成且 UI 处于等待状态
+                    const lastLines = data.lines.slice(-5).join("\n");
+                    if (statusArea.style.display !== 'none' && lastLines.includes("Background vector rebuild finished successfully")) {
+                        const statusText = document.getElementById('switchStatusText');
+                        statusText.innerText = "✅ 重建完成！即将刷新页面以加载新数据...";
+                        statusText.className = "text-success fw-bold";
+                        setTimeout(() => window.location.reload(), 2000);
+                    }
+                } else {
+                    viewer.innerHTML = '<div class="text-secondary">暂无日志内容</div>';
+                }
+            })
+            .catch(e => console.error("Log fetch error:", e));
+    }
+
+    // 每 2 秒刷新一次日志
+    setInterval(loadLogs, 2000);
+    loadLogs(); // 初始化加载
+
+    // --- 核心逻辑: 切换表并重建索引 ---
+    function switchAndRebuild() {
+        const tableSelect = document.getElementById('tableName');
+        const tableName = tableSelect.value;
+        const btn = document.getElementById('btnSwitch');
+        const statusArea = document.getElementById('switchStatusArea');
+        const statusText = document.getElementById('switchStatusText');
+        const currentLabel = document.getElementById('currentTableLabel');
+
+        if (!confirm(`⚠️ 高能警告：\n\n确定要切换到数据表 [${tableName}] 吗？\n\n系统将自动执行：\n1. 切换数据源\n2. 强制重建 AI 向量索引 (这可能需要几分钟)\n\n期间请勿关闭页面！`)) {
+            return;
+        }
+
+        // UI 锁定
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>处理中...';
+        statusArea.style.display = 'block';
+        statusText.innerText = `正在切换至 ${tableName} 并重建索引，请耐心等待...`;
+        statusText.className = "alert-info";
+
+        // 调用重建接口 (会自动切换表)
+        fetch('/api/rag/rebuild', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ table_name: tableName })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    statusText.innerText = "🚀 后台任务已启动！数据源已切换，AI 索引正在重建中...\n请关注下方「系统日志」查看进度。";
+                    statusText.className = "text-warning fw-bold";
+                    currentLabel.innerText = tableName;
+
+                    // 3秒后恢复按钮，但不刷新页面
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-sync-alt me-2"></i> 切换并重置 RAG';
+                    }, 3000);
+                } else {
+                    statusText.innerText = "❌ 失败: " + (data.error || "未知错误");
+                    statusText.className = "text-danger fw-bold";
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-sync-alt me-2"></i> 切换并重置 RAG';
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                statusText.innerText = "❌ 请求错误: " + err;
+                statusText.className = "text-danger fw-bold";
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sync-alt me-2"></i> 切换并重置 RAG';
+            });
+    }
+
+</script>
+{% endblock %}

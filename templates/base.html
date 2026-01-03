@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>{% block title %}豆瓣电影可视化{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='assets/css/custom.css') }}" rel="stylesheet">
+  <!-- Crypto icons for cool buttons if needed, or stick to BI -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    /* body styles moved to custom.css */
+
+    .nav-link.active {
+      font-weight: 700;
+    }
+
+    footer {
+      margin-top: 4rem;
+      padding: 2rem 0;
+      color: #6c757d;
+    }
+
+    /* Custom Navbar Alignment Logic (Hybrid) */
+    /* > 1750px: Absolute sides, Centered Container (Perfect Alignment for Ultra Wide) */
+    /* < 1750px: Fluid Flex (Safe, No Overlap, Optimized for 2K Laptops) */
+    /* Increased breakpoint to 1750px to cover 16-inch 2K laptops at 150% scaling */
+    @media (min-width: 1750px) {
+      .navbar-brand-wrapper {
+        position: absolute;
+        left: 1.5rem;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 1030;
+      }
+
+      .navbar-admin-wrapper {
+        position: absolute;
+        right: 1.5rem;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 1030;
+      }
+
+      .navbar-collapse {
+        justify-content: center;
+        width: 100%;
+      }
+    }
+
+    /* 针对 16寸笔记本/2K 屏幕 (1200px - 1750px) 进行特别优化 */
+    /* 扩展范围至 1750px，确保 2K 屏也能享受 90% 宽度 */
+    @media (min-width: 1200px) and (max-width: 1749px) {
+      .container {
+        max-width: 90% !important;
+      }
+    }
+  </style>
+  {% block head_extra %}{% endblock %}
+</head>
+
+<body class="d-flex flex-column min-vh-100">
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top position-relative">
+    <div class="container-fluid px-4">
+
+      <!-- 1. 品牌与侧边栏开关 -->
+      <div class="navbar-brand-wrapper d-flex align-items-center mb-2 mb-lg-0">
+        <button class="btn text-white me-2 border-0 ps-0" type="button" data-bs-toggle="offcanvas"
+          data-bs-target="#sidebarMenu" aria-controls="sidebarMenu">
+          <i class="bi bi-list fs-3"></i>
+        </button>
+        <a class="navbar-brand fw-bold m-0" href="{{ url_for('movie.index') }}">
+          <i class="bi bi-film me-2"></i>豆瓣电影
+        </a>
+      </div>
+
+      <!-- 移动端导航折叠开关 -->
+      <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#nav"
+        aria-controls="nav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="nav">
+
+        <!-- Center Overlay: Strictly Aligned Container -->
+        <!-- Contains Nav (Left) and Search (Right) -->
+        <div class="container d-flex flex-column flex-lg-row align-items-lg-center px-0">
+
+          <!-- Left: Page Navigation -->
+          <ul class="navbar-nav mb-2 mb-lg-0 me-auto">
+            <li class="nav-item"><a class="nav-link {% if request.endpoint=='movie' %}active{% endif %}"
+                href="{{ url_for('movie.movie_list') }}">电影列表</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint=='analysis' %}active{% endif %}"
+                href="{{ url_for('analysis.analysis') }}">数据大屏</a></li>
+          </ul>
+
+          <!-- Right (of Container): Search Bar -->
+          <!-- ms-auto pushes it to the right edge of the .container -->
+          {% if request.endpoint not in ['index', 'home', 'search'] %}
+          <form action="{{ url_for('movie.search') }}" method="get" class="d-flex ms-auto col-12 col-lg-4 mb-2 mb-lg-0"
+            role="search" style="width: 350px; max-width: 100%;">
+            <div class="input-group rounded-pill overflow-hidden bg-light w-100">
+              <input class="form-control form-control-sm bg-transparent border-0 ps-3" type="search" name="q"
+                placeholder="搜索电影、导演..." aria-label="Search">
+              <button class="btn btn-sm btn-primary px-3" type="submit"><i class="bi bi-search"></i></button>
+            </div>
+          </form>
+          {% endif %}
+
+        </div>
+
+        <!-- 3. 管理与帮助 (Desktop Absolute Right) -->
+        <div class="navbar-admin-wrapper d-none d-lg-flex gap-3 align-items-center">
+          <a class="btn btn-link nav-link text-white-50 p-0" href="{{ url_for('movie.help') }}">
+            <i class="bi bi-question-circle-fill me-1"></i>帮助
+          </a>
+          <a class="btn btn-link nav-link text-white-50 p-0" href="{{ url_for('admin.admin') }}">
+            <i class="bi bi-gear-fill me-1"></i>管理
+          </a>
+        </div>
+
+        <!-- 移动端管理与帮助入口 -->
+        <div class="d-lg-none mt-3 border-top pt-3">
+          <a class="nav-link mb-2" href="{{ url_for('movie.help') }}"><i
+              class="bi bi-question-circle-fill me-1"></i>帮助说明</a>
+          <a class="nav-link" href="{{ url_for('admin.admin') }}"><i class="bi bi-gear-fill me-1"></i>后台管理</a>
+        </div>
+
+      </div>
+    </div>
+  </nav>
+
+  <!-- Sidebar (Offcanvas) -->
+  <div class="offcanvas offcanvas-start bg-white text-dark shadow border-0" tabindex="-1" id="sidebarMenu"
+    aria-labelledby="sidebarMenuLabel" style="width: 300px;">
+
+    <!-- Header with Gradient -->
+    <div class="offcanvas-header text-white" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);">
+      <h5 class="offcanvas-title fw-bold" id="sidebarMenuLabel"><i class="bi bi-film me-2"></i>豆瓣电影</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+
+    <div class="offcanvas-body p-0 d-flex flex-column">
+
+      <!-- Main Navigation -->
+      <div class="py-3">
+        <h6 class="px-4 text-uppercase text-muted small fw-bold mb-2 ls-1">导航菜单 (Menu)</h6>
+        <div class="list-group list-group-flush">
+          <a href="{{ url_for('movie.index') }}"
+            class="list-group-item list-group-item-action border-0 px-4 py-3 d-flex align-items-center {% if request.endpoint=='index' %}bg-light text-primary fw-bold{% endif %}">
+            <i class="bi bi-house-door me-3 fs-5"></i>回到首页
+          </a>
+          <a href="{{ url_for('movie.movie_list') }}"
+            class="list-group-item list-group-item-action border-0 px-4 py-3 d-flex align-items-center {% if request.endpoint=='movie' %}bg-light text-primary fw-bold{% endif %}">
+            <i class="bi bi-collection-play me-3 fs-5"></i>电影列表
+          </a>
+          <!-- 数据大屏 (父菜单) -->
+          <a href="#collapseAnalysis" data-bs-toggle="collapse" role="button"
+            aria-expanded="{% if request.endpoint=='analysis' %}true{% else %}false{% endif %}"
+            aria-controls="collapseAnalysis"
+            class="list-group-item list-group-item-action border-0 px-4 py-3 d-flex align-items-center justify-content-between {% if request.endpoint=='analysis' %}bg-light text-primary fw-bold{% endif %}">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-bar-chart-line me-3 fs-5"></i>数据大屏
+            </div>
+            <i class="bi bi-chevron-down small"></i>
+          </a>
+
+          <!-- 数据大屏 (子菜单) -->
+          <div class="collapse {% if request.endpoint in ['analysis'] %}show{% endif %}" id="collapseAnalysis">
+            <div class="list-group list-group-flush bg-white">
+              <a href="{{ url_for('analysis.analysis') }}#score"
+                class="list-group-item list-group-item-action border-0 ps-5 py-2 small text-muted">
+                <i class="bi bi-music-note-list me-2"></i>评分分布
+              </a>
+              <a href="{{ url_for('analysis.analysis') }}#trends"
+                class="list-group-item list-group-item-action border-0 ps-5 py-2 small text-muted">
+                <i class="bi bi-graph-up me-2"></i>年份走势
+              </a>
+              <a href="{{ url_for('analysis.analysis') }}#genre"
+                class="list-group-item list-group-item-action border-0 ps-5 py-2 small text-muted">
+                <i class="bi bi-pie-chart me-2"></i>类型统计
+              </a>
+              <a href="{{ url_for('analysis.analysis') }}#ai-hub"
+                class="list-group-item list-group-item-action border-0 ps-5 py-2 small text-muted">
+                <i class="bi bi-cpu me-2"></i>AI 词云 & 聚类
+              </a>
+              <a href="{{ url_for('analysis.analysis') }}#world-map"
+                class="list-group-item list-group-item-action border-0 ps-5 py-2 small text-muted">
+                <i class="bi bi-globe me-2"></i>全球产地
+              </a>
+              <a href="{{ url_for('analysis.analysis') }}#graph"
+                class="list-group-item list-group-item-action border-0 ps-5 py-2 small text-muted">
+                <i class="bi bi-share me-2"></i>影视关系
+              </a>
+            </div>
+          </div>
+
+          <a href="{{ url_for('admin.admin') }}"
+            class="list-group-item list-group-item-action border-0 px-4 py-3 d-flex align-items-center {% if request.endpoint=='admin' %}bg-light text-primary fw-bold{% endif %}">
+            <i class="bi bi-gear me-3 fs-5"></i>后台管理
+          </a>
+          <a href="{{ url_for('movie.aboutMe') }}"
+            class="list-group-item list-group-item-action border-0 px-4 py-3 d-flex align-items-center {% if request.endpoint=='aboutMe' %}bg-light text-primary fw-bold{% endif %}">
+            <i class="bi bi-info-circle me-3 fs-5"></i>关于项目
+          </a>
+        </div>
+      </div>
+
+      <hr class="my-0 opacity-25">
+
+      <!-- 快速标签云 -->
+      <div class="py-4 px-4">
+        <h6 class="text-uppercase text-muted small fw-bold mb-3 ls-1">快速分类 (Tags)</h6>
+        <div class="d-flex flex-wrap gap-2">
+          {% for cn, color in sidebar_tags %}
+          <a href="{{ url_for('movie.search', q=cn) }}"
+            class="btn btn-sm btn-outline-{{ color }} rounded-pill border px-3">
+            {{ cn }}
+          </a>
+          {% else %}
+          <!-- 数据库无数据时显示默认 -->
+          <span class="text-muted small">暂无分类数据</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- 底部信息 -->
+      <div class="mt-auto p-4 bg-light border-top">
+        <div class="d-flex align-items-center mb-2">
+          <div class="avatar bg-primary text-white rounded-circle me-3 d-flex align-items-center justify-content-center"
+            style="width: 40px; height: 40px;">
+            <i class="bi bi-person-fill"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-dark small">Douban Viz</div>
+            <div class="text-muted small" style="font-size: 0.75rem;">Python Flask Project</div>
+          </div>
+        </div>
+        <div class="text-muted small mt-2" style="font-size: 0.75rem;">
+          &copy; 2024 Designed by Tao Yang & Xingwang Ma
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main class="container py-4 flex-grow-1">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="bg-white border-top mt-auto py-3">
+    <div class="container text-center text-muted">
+      <small>豆瓣电影数据可视化 · Flask + Jinja · Designed by Tao Yang & Xingwang Ma</small>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- ECharts 核心库 (修复: 图谱页面依赖此库) -->
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+
+  <!-- 回到顶部按钮 -->
+  <button type="button" class="btn btn-primary rounded-circle shadow-lg p-0 d-none" id="btn-back-to-top"
+    style="position: fixed; bottom: 30px; right: 30px; width: 50px; height: 50px; z-index: 1050; transition: opacity 0.3s;">
+    <i class="bi bi-arrow-up fs-4"></i>
+  </button>
+
+  <script>
+    // 全局初始化 Bootstrap Tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+
+    // 回到顶部按钮逻辑
+    const btnBackToTop = document.getElementById("btn-back-to-top");
+
+    window.onscroll = function () {
+      if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
+        btnBackToTop.classList.remove("d-none");
+        btnBackToTop.style.opacity = "1";
+      } else {
+        btnBackToTop.style.opacity = "0";
+        setTimeout(() => {
+          if (btnBackToTop.style.opacity === "0") btnBackToTop.classList.add("d-none");
+        }, 300);
+      }
+    };
+
+    btnBackToTop.addEventListener("click", function () {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  </script>
+  {% block scripts %}{% endblock %}
+
+  <!-- RAG 智能助手 UI (Global) -->
+  <div id="ai-assistant-container" style="position: fixed; bottom: 80px; right: 30px; z-index: 9999; cursor: move;">
+    <!-- 悬浮按钮 -->
+    <button id="ai-fab" class="btn text-white rounded-circle d-flex align-items-center justify-content-center border-0"
+      style="width: 60px; height: 60px; transition: transform 0.2s, box-shadow 0.2s; 
+                   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                   box-shadow: 0 4px 15px rgba(118, 75, 162, 0.4);">
+      <i class="bi bi-robot fs-3"></i>
+    </button>
+
+    <!-- 聊天窗口 (禁止拖动事件冒泡) -->
+    <div id="ai-chat-window" class="card shadow-lg border-0 d-none" onmousedown="event.stopPropagation()"
+      style="position: absolute; bottom: 80px; right: 0; width: 380px; height: 500px; display: flex; flex-direction: column; overflow: hidden; border-radius: 1rem; cursor: default;">
+
+      <div class="card-header bg-white text-dark border-bottom d-flex justify-content-between align-items-center py-3"
+        style="background: linear-gradient(to right, #ffffff, #f8f9fa);">
+        <h6 class="m-0 fw-bold border-start border-4 border-primary ps-2" style="color: #764ba2;">AI 电影推荐助手</h6>
+        <button id="close-chat" class="btn btn-sm btn-light text-muted p-1 rounded-circle"><i
+            class="bi bi-x-lg"></i></button>
+      </div>
+
+      <div class="card-body bg-light overflow-auto p-3" id="chat-messages" style="flex: 1;">
+        <div class="d-flex flex-column gap-3">
+          <div class="align-self-start bg-white p-3 rounded-3 shadow-sm border" style="max-width: 85%;">
+            <p class="mb-0 small text-secondary">👋 您好！我是您的智能观影助手。<br>试试问我：<br>“推荐几部成龙主演的动作片”</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-footer bg-white border-top p-3">
+        <div class="input-group">
+          <input type="text" id="chat-input" class="form-control border-end-0" placeholder="输入您的想法..."
+            style="border-color: #764ba2;" onkeypress="if(event.keyCode==13) sendQuery()">
+          <button class="btn btn-outline-primary border-start-0" onclick="sendQuery()"
+            style="color: #764ba2; border-color: #764ba2;">
+            <i class="bi bi-send"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    #ai-fab:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(118, 75, 162, 0.6) !important;
+    }
+
+    #chat-input:focus {
+      border-color: #764ba2;
+      box-shadow: 0 0 0 0.25rem rgba(118, 75, 162, 0.25);
+    }
+
+    .movie-card-sm:hover {
+      background-color: #f8f9fa;
+      cursor: pointer;
+    }
+  </style>
+
+  <script>
+    (function () {
+      // 封装在立即执行函数中避免全局污染
+      const container = document.getElementById('ai-assistant-container');
+      const fab = document.getElementById('ai-fab');
+      const windowEl = document.getElementById('ai-chat-window');
+      const closeBtn = document.getElementById('close-chat');
+      const messages = document.getElementById('chat-messages');
+      const chatInput = document.getElementById('chat-input');
+
+      if (!container || !fab) return;
+
+      // --- 拖动逻辑 ---
+      let isDragging = false;
+      let hasMoved = false;
+      let offset = { x: 0, y: 0 };
+
+      container.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        hasMoved = false;
+        const rect = container.getBoundingClientRect();
+        offset.x = e.clientX - rect.left;
+        offset.y = e.clientY - rect.top;
+
+        container.style.right = 'auto';
+        container.style.bottom = 'auto';
+        container.style.left = rect.left + 'px';
+        container.style.top = rect.top + 'px';
+
+        container.style.cursor = 'grabbing';
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        hasMoved = true;
+        e.preventDefault();
+        const x = e.clientX - offset.x;
+        const y = e.clientY - offset.y;
+        container.style.left = x + 'px';
+        container.style.top = y + 'px';
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          container.style.cursor = 'move';
+        }
+      });
+
+      // --- 点击与显隐逻辑 ---
+      let hideTimer = null;
+      let isMouseOver = false;
+
+      fab.addEventListener('click', (e) => {
+        if (!hasMoved) {
+          windowEl.classList.toggle('d-none');
+        }
+      });
+
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        windowEl.classList.add('d-none');
+      });
+
+      container.addEventListener('mouseenter', () => {
+        isMouseOver = true;
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+      });
+
+      container.addEventListener('mouseleave', () => {
+        isMouseOver = false;
+        checkAndHide();
+      });
+
+      chatInput.addEventListener('blur', () => {
+        setTimeout(checkAndHide, 100);
+      });
+
+      function checkAndHide() {
+        if (isMouseOver || document.activeElement === chatInput) return;
+        if (!windowEl.classList.contains('d-none')) {
+          if (hideTimer) clearTimeout(hideTimer);
+          hideTimer = setTimeout(() => {
+            if (!isMouseOver && document.activeElement !== chatInput) {
+              windowEl.classList.add('d-none');
+            }
+          }, 3000);
+        }
+      }
+
+      window.sendQuery = function () {
+        const query = chatInput.value.trim();
+        if (!query) return;
+
+        appendMessage('user', query);
+        chatInput.value = '';
+        const loadingId = appendMessage('system', '<div class="spinner-border spinner-border-sm text-primary" role="status"></div> 正在思考中...');
+
+        fetch('/api/rag/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: query })
+        })
+          .then(res => res.json())
+          .then(data => {
+            removeLoadingMessage();
+            if (data.error) {
+              appendMessage('system', '出错了: ' + data.error);
+              return;
+            }
+            if (data.answer) appendMessage('system', data.answer);
+
+            const movies = data.movies || [];
+            if (movies.length === 0) {
+              if (!data.answer) appendMessage('system', '抱歉，没有找到相关电影。');
+              return;
+            }
+            let html = '<p class="mb-2 small fw-bold text-primary">为您检索到以下参考资料：</p>';
+            movies.forEach(m => {
+              html += `
+                  <div class="d-flex align-items-start gap-2 mb-2 p-2 border rounded bg-white movie-card-sm" 
+                       onclick="window.open('/movie/${m.id}', '_blank')" title="点击查看详情">
+                      <img src="${m.pic}" style="width: 40px; height: 56px; object-fit: cover;" class="rounded" referrerpolicy="no-referrer">
+                      <div class="flex-grow-1" style="min-width: 0;">
+                          <div class="d-flex justify-content-between">
+                              <h6 class="mb-0 text-truncate" style="font-size: 0.9rem;">${m.title}</h6>
+                              <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">${m.score}</span>
+                          </div>
+                      </div>
+                  </div>`;
+            });
+            appendMessage('system-rich', html);
+          })
+          .catch(err => {
+            removeLoadingMessage();
+            appendMessage('system', '服务器连接失败: ' + err);
+          });
+      };
+
+      // --- 历史记录管理 ---
+      const HISTORY_KEY = 'douban_chat_history';
+
+      function loadHistory() {
+        try {
+          const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+          history.forEach(item => renderMessage(item.role, item.content));
+          // 如果有历史记录，滚动到底部
+          if (history.length > 0) {
+            setTimeout(() => messages.scrollTop = messages.scrollHeight, 100);
+          }
+        } catch (e) {
+          console.error('Failed to load history', e);
+        }
+      }
+
+      function saveHistory(role, content) {
+        // 不保存 Loading 状态的消息
+        if (content.includes('spinner-border')) return;
+
+        try {
+          const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+          history.push({ role, content });
+          // 限制只保留最近 50 条
+          if (history.length > 50) history.shift();
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+        } catch (e) {
+          console.error('Failed to save history', e);
+        }
+      }
+
+      // 初始化加载历史
+      loadHistory();
+
+      // --- 消息渲染 ---
+
+      // 公开接口：追加消息并保存
+      function appendMessage(role, content) {
+        const id = renderMessage(role, content);
+        saveHistory(role, content);
+        return id;
+      }
+
+      // 内部渲染逻辑 (不保存)
+      function renderMessage(role, content) {
+        const div = document.createElement('div');
+        const id = 'msg-' + Date.now() + Math.random().toString(36).substr(2, 5);
+        div.id = id;
+        if (content.includes('spinner-border')) div.classList.add('loading-msg');
+
+        if (role === 'user') {
+          div.className = "align-self-end bg-primary text-white p-3 rounded-3 shadow-sm";
+          div.style.maxWidth = "85%";
+          div.innerText = content;
+        } else if (role === 'system') {
+          div.className = "align-self-start bg-white p-3 rounded-3 shadow-sm border";
+          div.style.maxWidth = "85%";
+          div.innerHTML = content;
+        } else if (role === 'system-rich') {
+          div.className = "align-self-start w-100";
+          div.innerHTML = content;
+        }
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+        return id;
+      }
+
+      // 注意：removeLoadingMessage 需要稍微修改以移除 DOM 元素 (renderMessage 已经加了 ID)
+      function removeLoadingMessage() {
+        const loadings = messages.querySelectorAll('.loading-msg');
+        loadings.forEach(el => el.remove());
+        // 兼容旧逻辑
+        const spinners = messages.querySelectorAll('.spinner-border');
+        spinners.forEach(s => {
+          const parent = s.closest('div[id^="msg-"]');
+          if (parent) parent.remove();
+        });
+      }
+    })();
+  </script>
+</body>
+
+</html>

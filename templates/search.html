@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}豆瓣电影 - 搜索{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8 mx-auto text-center">
+        <h3 class="h3 fw-bold text-gray-800 mb-3">全库搜索</h3>
+        <form action="{{ url_for('movie.search') }}" method="get"
+            class="d-flex shadow-sm rounded-pill overflow-hidden bg-white p-1">
+            <input class="form-control border-0 ps-4 form-control-lg" type="search" name="q"
+                placeholder="输入电影名、演员、导演或类型..." value="{{ keyword }}" aria-label="Search" style="box-shadow: none;">
+            <button class="btn btn-primary rounded-pill px-4" type="submit">搜索</button>
+        </form>
+    </div>
+</div>
+
+{% if keyword %}
+<div class="alert alert-primary shadow-sm border-0 rounded-3 text-center" role="alert">
+    关键词 "<strong>{{ keyword }}</strong>" 的搜索结果: 共 <strong>{{ movies|length }}</strong> 条
+</div>
+
+{% if movies %}
+<div class="row row-cols-1 row-cols-md-3 g-4">
+    {% for movie in movies %}
+    <div class="col">
+        <div class="card h-100 shadow rounded-3 border-0 transition-hover">
+            <div class="row g-0 h-100">
+                <div class="col-4 overflow-hidden rounded-start h-100">
+                    <img src="{{ movie[2] }}" class="img-fluid w-100 h-100 bg-light"
+                        style="object-fit: cover; min-height: 160px;" alt="{{ movie[3] }}" loading="lazy">
+                </div>
+                <div class="col-8">
+                    <div class="card-body p-3">
+                        <h6 class="card-title fw-bold text-truncate" title="{{ movie[3] }}">
+                            <a href="/movie/{{ movie[0] }}" class="text-dark text-decoration-none stretched-link">{{
+                                movie[3] }}</a>
+                        </h6>
+                        <p class="card-text mb-1">
+                            <span class="badge bg-warning text-dark">{{ movie[4] }}</span>
+                            <small class="text-muted">{{ movie[5] }}人评价</small>
+                        </p>
+                        <p class="card-text small text-muted mb-1 text-truncate">{{ movie[7] }} / {{ movie[8] }} / {{
+                            movie[9] }}</p>
+                        {% if movie[10] %}
+                        <p class="card-text small mb-0 text-truncate text-muted" title="{{ movie[10] }}"
+                            data-bs-toggle="tooltip" data-bs-placement="top">导: {{ movie[10]
+                            }}</p>
+                        {% endif %}
+                        {% if movie[11] %}
+                        <p class="card-text small mb-0 text-truncate text-muted" title="{{ movie[11] }}"
+                            data-bs-toggle="tooltip" data-bs-placement="top">演: {{ movie[11]
+                            }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5 opacity-50">
+    <div class="fs-1 mb-3">😕</div>
+    <p class="text-muted">没有找到相关电影，换个关键词试试？</p>
+</div>
+{% endif %}
+
+{% else %}
+<div class="text-center py-5 opacity-50">
+    <div class="fs-1 mb-3">🔍</div>
+    <p class="text-muted">请输入关键词开始搜索...</p>
+</div>
+{% endif %}
+{% endblock %}
