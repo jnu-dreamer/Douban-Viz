@@ -1,6 +1,6 @@
-# 🎬 Douban AI Analysis: 基于RAG的电影智能分析系统
+# 🎬 Douban AI Analysis: Python程序设计大作业
 
-> **本项目**是一个基于 Python Flask 全栈开发，集成 RAG（检索增强生成）、知识图谱、文本聚类等 AI 技术的电影数据采集与可视化分析平台。
+> **本项目**是一个基于 Python Flask 框架，使用 RAG（检索增强生成）、知识图谱、文本聚类等 AI 技术的电影数据采集与可视化分析平台。
 
 ---
 
@@ -15,16 +15,18 @@
 
 ### 🛠️ 环境搭建
 
-本项目基于 Python 3.8+ 开发。
+本项目基于 Python 3.9+ 开发。
 
 1.  **克隆仓库**
     ```bash
-    git clone https://github.com/yourusername/douban-flask.git
-    cd douban-flask
+    git clone https://github.com/jnu-dreamer/Douban-Viz.git
+    cd Douban-Viz
     ```
 
 2.  **安装依赖**
     ```bash
+    conda create -n douban python=3.9
+    conda activate douban
     pip install -r requirements.txt
     ```
 

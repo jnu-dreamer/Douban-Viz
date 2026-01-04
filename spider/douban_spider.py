@@ -21,7 +21,7 @@ class DoubanSpider:
         self.pages = pages
         self.limit = limit
         self.delay = delay
-        self.start = start # 新增 start 参数
+        self.start = start 
         self.headers = { # 设置HTTP头，伪装为Chrome浏览器
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         }
@@ -196,10 +196,15 @@ class DoubanSpider:
             # 1. 简介 (v:summary)
             related_info = soup.find("div", class_="related-info")
             if related_info:
-                span = related_info.find("span", property="v:summary")
-                if span:
-                    # 处理可能存在的 <br>
-                    details["introduction"] = span.get_text(strip=True)
+                # 优先寻找隐藏的“展开全部”里的完整简介
+                hidden_span = related_info.find("span", class_="all hidden")
+                if hidden_span:
+                    details["introduction"] = hidden_span.get_text(strip=True)
+                else:
+                    span = related_info.find("span", property="v:summary")
+                    if span:
+                        # 处理可能存在的 <br>
+                        details["introduction"] = span.get_text(strip=True)
 
             # 2. Meta 信息 (#info)
             info_div = soup.find("div", id="info")

@@ -231,7 +231,7 @@ def clustering_data():
     
     try:
         k = int(request.args.get("k", 10))
-        k = max(2, min(k, 50))
+        k = max(2, min(k, 50    ))
         
         service = ClusteringService(repo)
         data = service.perform_clustering(n_clusters=k)

@@ -11,6 +11,12 @@ from dotenv import load_dotenv
 
 # 加载环境变量
 load_dotenv()
+api_key_debug = os.getenv("DEEPSEEK_API_KEY")
+print(f"DEBUG: DEEPSEEK_API_KEY loaded: {api_key_debug is not None}")
+if api_key_debug:
+    print(f"DEBUG: Key length: {len(api_key_debug)}")
+else:
+    print("DEBUG: API Key is None! Please check .env file.")
 
 # ========== 应用初始化 ==========
  
